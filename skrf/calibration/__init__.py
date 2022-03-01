@@ -1,5 +1,5 @@
 
-'''
+"""
 .. module:: skrf.calibration
 ========================================
 calibration (:mod:`skrf.calibration`)
@@ -12,12 +12,14 @@ module.
 
 .. automodule:: skrf.calibration.calibration
 
-'''
+"""
 
 
 #from parametricStandard import *
 from . import calibration
 from . import calibrationSet
+from . import deembedding
 
 from .calibration import *
 from .calibrationSet import *
+from .deembedding import *

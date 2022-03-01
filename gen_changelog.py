@@ -1,15 +1,15 @@
 #!/usr/bin/env python
-'''Script to build a changelog for all version tags'''
+"""Script to build a changelog for all version tags"""
 from subprocess import Popen, PIPE, CalledProcessError, check_call
 import datetime
 
 ## Variables
 changelog_filename = 'CHANGELOG.txt'
-header = '''Changelog For scikit-rf
+header = """Changelog For scikit-rf
 Generated on %s
 
 
-'''%(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
+"""%(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))
 
 
 
@@ -34,15 +34,15 @@ def sh2(cmd, ignore_retcode = False):
             return out.rstrip()
 
 ## Start
-fid = file(changelog_filename,'w')
-fid.write(header)
-tags = sh2('git tag').split('\n')
-
-
-for k in range(len(tags))[1::-1]:
-    fid.write('\n\n-------------------------------- %s ---------------------------------\n\n'%tags[k+1])
-    fid.write(sh2('git shortlog -n %s..%s'%(tags[k],tags[k+1]), ignore_retcode=True))
-
-fid.write ('\n----------------------------------- %s ---------------------------------\n\n'%tags[0])
-fid.write(sh2('git shortlog -n %s'%(tags[0]), ignore_retcode=True))
+with open(changelog_filename,'w') as fid:
+    fid.write(header)
+    tags = sh2('git tag').split('\n')
+    
+    
+    for k in range(len(tags))[1::-1]:
+        fid.write('\n\n-------------------------------- %s ---------------------------------\n\n'%tags[k+1])
+        fid.write(sh2('git shortlog -n %s..%s'%(tags[k],tags[k+1]), ignore_retcode=True))
+    
+    fid.write ('\n----------------------------------- %s ---------------------------------\n\n'%tags[0])
+    fid.write(sh2('git shortlog -n %s'%(tags[0]), ignore_retcode=True))
 

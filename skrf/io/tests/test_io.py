@@ -4,14 +4,15 @@ import os
 import numpy as npy
 
 import skrf as rf
+from skrf.io import Touchstone
 
 
 class IOTestCase(unittest.TestCase):
-    '''
-    '''
+    """
+    """
     def setUp(self):
-        '''
-        '''
+        """
+        """
         self.test_dir = os.path.dirname(os.path.abspath(__file__))+'/'
         self.pickle_file = os.path.join(self.test_dir, 'pickled.p')
         self.hfss_oneport_file = os.path.join(self.test_dir, 'hfss_oneport.s1p')
@@ -22,15 +23,16 @@ class IOTestCase(unittest.TestCase):
         self.short = rf.Network(os.path.join(self.test_dir, 'short.s1p'))
         self.match = rf.Network(os.path.join(self.test_dir, 'match.s1p'))
         self.open = rf.Network(os.path.join(self.test_dir, 'open.s1p'))
+        self.ntwk_comments_file = os.path.join(self.test_dir, 'comments.s3p')
         self.test_files = [os.path.join(self.test_dir, test_file) for test_file in ['ntwk1.s2p', 'ntwk2.s2p']]
         self.embeding_network= rf.Network(os.path.join(self.test_dir, 'embedingNetwork.s2p'))
         self.freq = rf.F(75,110,101)
 
     def read_write(self,obj):
-        '''
+        """
         function to test write/read equivalence for an obj which has
         __eq__ defined
-        '''
+        """
         rf.write(self.pickle_file,obj)
         self.assertEqual(rf.read(self.pickle_file), obj)
        # os.remove(self.pickle_file)
@@ -64,12 +66,12 @@ class IOTestCase(unittest.TestCase):
         self.read_write([self.ntwk1, self.ntwk2])
 
     def test_readwrite_networkSet(self):
-        '''
+        """
         test_readwrite_networkSet
         TODO: need __eq__ method for NetworkSet
         This doesnt test equality between  read/write, because there is no
         __eq__ test for NetworkSet. it only tests for other errors
-        '''
+        """
         rf.write(self.pickle_file,rf.NS([self.ntwk1, self.ntwk2]))
         rf.read(self.pickle_file)
         #self.assertEqual(rf.read(self.pickle_file), rf.NS([self.ntwk1, self.ntwk2])
@@ -142,10 +144,9 @@ class IOTestCase(unittest.TestCase):
         self.read_write(a_media)
 
     def test_snp_json_roundtrip(self):
-        '''
+        """
         Tests if snp object saved to json and reloaded is still the same.
-        :return:
-        '''
+        """
         given = self.ntwk1
         actual = rf.from_json_string(rf.to_json_string(given))
         self.assertEqual(actual, given)
@@ -155,3 +156,12 @@ class IOTestCase(unittest.TestCase):
         self.assertEqual(actual.z0.tolist(), given.z0.tolist())
         self.assertEqual(actual.port_names, given.port_names)
         self.assertEqual(actual.variables, given.variables)
+
+    def test_touchstone_get_comment_variables(self):
+        """
+        Tests if comments are parsed correctly with get_comment_variables() method.
+        """
+
+        given = {'p1': ('.03', ''), 'p2': ('0.03', ''), 'p3': ('100', ''), 'p4': ('2.5', 'um')}
+        actual = Touchstone(self.ntwk_comments_file).get_comment_variables()
+        self.assertEqual(given, actual)

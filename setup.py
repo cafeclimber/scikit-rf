@@ -10,7 +10,7 @@ with open('skrf/__init__.py') as fid:
             break
 
 LONG_DESCRIPTION = """
-	sckit-rf is an open source approach to RF/Microwave engineering implemented in the Python programming language.
+	scikit-rf is an open source approach to RF/Microwave engineering implemented in the Python programming language.
 """
 setup(name='scikit-rf',
 	version=VERSION,
@@ -24,9 +24,29 @@ setup(name='scikit-rf',
 	install_requires = [
 		'numpy',
 		'scipy',
-        'six',
-        'future',
+		'matplotlib',
+		'pandas',
+		'networkx',
+		'xlwt',
+		'openpyxl',
 		],
+	extras_require={
+		'docs': [
+			'jupyter_client',
+			'python-ivi',
+			'pyvisa',
+			'ipython',
+			'ipykernel',
+			'ipywidgets',
+		],
+		'tests': [
+			'coverage',
+			'flake8',
+			'pytest',
+			'pytest-cov',
+			'nbval',
+		],
+	},
 	#ext_modules=[Extension('skrf.src.connect', ['skrf/src/connect.c', ], export_symbols=['innerconnect_s','connect_s'])],
 	package_dir={'skrf':'skrf'},
 	include_package_data = True,

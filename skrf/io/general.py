@@ -1,5 +1,4 @@
-
-'''
+"""
 .. module:: skrf.io.general
 
 ========================================
@@ -9,8 +8,11 @@ general (:mod:`skrf.io.general`)
 General input/output functions for reading and writing skrf objects
 
 
-General functions
+Pickle functions
 ------------------
+
+The read/write methods use the pickle module. These should only be used
+for temporary storage.
 
 .. autosummary::
    :toctree: generated/
@@ -23,7 +25,7 @@ General functions
    save_sesh
 
 
-Writing output to spreadsheet
+Spreadsheets
 -----------------------------
 
 .. autosummary::
@@ -32,7 +34,7 @@ Writing output to spreadsheet
    network_2_spreadsheet
    networkset_2_spreadsheet
 
-Writing output to pandas dataframe
+Pandas dataframe
 ----------------------------------
 
 .. autosummary::
@@ -40,19 +42,35 @@ Writing output to pandas dataframe
 
    network_2_dataframe
 
-'''
-import sys
+Statistics
+----------
 
-import six.moves.cPickle as pickle
-from six.moves.cPickle import UnpicklingError
+.. autosummary::
+   :toctree: generated/
+
+    statistical_2_touchstone
+
+JSON
+-------
+
+.. autosummary::
+   :toctree: generated/
+
+   TouchstoneEncoder
+   to_json_string
+   from_json_string
 
 
+"""
+import glob
 import inspect
-import os
-import zipfile
-import warnings
-import sys
 import json
+import os
+import pickle
+from pickle import UnpicklingError
+import sys
+import warnings
+
 import numpy as npy
 
 from ..util import get_extn, get_fid
@@ -80,39 +98,43 @@ OBJ_EXTN = [
 
 
 def read(file, *args, **kwargs):
-    '''
-    Read  skrf object[s] from a pickle file
+    r"""
+    Read  skrf object[s] from a pickle file.
 
     Reads a skrf object that is written with :func:`write`, which uses
     the :mod:`pickle` module.
 
     Parameters
-    ------------
+    ----------
     file : str or file-object
         name of file, or  a file-object
     \*args, \*\*kwargs : arguments and keyword arguments
         passed through to pickle.load
 
+
+    .. note::
+        If `file` is a:
+
+        * a file-object, it is left open
+
+        * a filename, then a file-object is opened and closed. 
+
+        * a file-object and reading fails, then the position is reset back to 0 using seek if possible.
+
+
     Examples
-    -------------
+    --------
     >>> n = rf.Network(f=[1,2,3],s=[1,1,1],z0=50)
     >>> n.write('my_ntwk.ntwk')
     >>> n_2 = rf.read('my_ntwk.ntwk')
 
     See Also
-    ----------
+    --------
     read : read a skrf object
     write : write skrf object[s]
     read_all : read all skrf objects in a directory
     write_all : write dictionary of skrf objects to a directory
-
-    Notes
-    -------
-    if `file` is a file-object it is left open, if it is a filename then
-    a file-object is opened and closed. If file is a file-object
-    and reading fails, then the position is reset back to 0 using seek
-    if possible.
-    '''
+    """
     fid = get_fid(file, mode='rb')
     try:
         obj = pickle.load(fid, *args, **kwargs)
@@ -132,8 +154,8 @@ def read(file, *args, **kwargs):
     return obj
 
 def write(file, obj, overwrite = True):
-    '''
-    Write skrf object[s] to a file
+    """
+    Write skrf object[s] to a file.
 
     This uses the :mod:`pickle` module to write skrf objects to a file.
     Note that you can write any pickl-able python object. For example,
@@ -141,10 +163,10 @@ def write(file, obj, overwrite = True):
     objects
     or :class:`~skrf.calibration.calibration.Calibration` objects. This
     will write out a single file. If you would like to write out a
-    seperate file for each object, use :func:`write_all`.
+    separate file for each object, use :func:`write_all`.
 
     Parameters
-    ------------
+    ----------
     file : file or string
         File or filename to which the data is saved.  If file is a
         file-object, then the filename is unchanged.  If file is a
@@ -157,29 +179,29 @@ def write(file, obj, overwrite = True):
     overwrite : Boolean
         if file exists, should it be overwritten?
 
-    Notes
-    -------
 
-    If `file` is a str, but doesnt contain a suffix, one is chosen
-    automatically. Here are the extensions
+    .. note::
+        If `file` is a string, but doesnt contain a suffix, one is chosen
+        automatically. Here are the extensions:
 
 
-    ====================================================  ===============
-    skrf object                                           extension
-    ====================================================  ===============
-    :class:`~skrf.frequency.Frequency`                    '.freq'
-    :class:`~skrf.network.Network`                        '.ntwk'
-    :class:`~skrf.networkSet.NetworkSet`                  '.ns'
-    :class:`~skrf.calibration.calibration.Calibration`    '.cal'
-    :class:`~skrf.media.media.Media`                      '.med'
-    other                                                 '.p'
-    ====================================================  ===============
+        ====================================================  ===============
+        skrf object                                           extension
+        ====================================================  ===============
+        :class:`~skrf.frequency.Frequency`                    '.freq'
+        :class:`~skrf.network.Network`                        '.ntwk'
+        :class:`~skrf.networkSet.NetworkSet`                  '.ns'
+        :class:`~skrf.calibration.calibration.Calibration`    '.cal'
+        :class:`~skrf.media.media.Media`                      '.med'
+        other                                                 '.p'
+        ====================================================  ===============
 
-    To make the file written by this method cross-platform, the pickling
-    protocol 2 is used. See :mod:`pickle` for more info.
+    .. note::
+        To make the file written by this method cross-platform, the pickling
+        protocol 2 is used. See :mod:`pickle` for more info.
 
     Examples
-    -------------
+    --------
     Convert a touchstone file to a pickled Network,
 
     >>> n = rf.Network('my_ntwk.s2p')
@@ -194,7 +216,7 @@ def write(file, obj, overwrite = True):
     >>> n_red = rf.read('out.p')
 
     See Also
-    ------------
+    --------
     read : read a skrf object
     write : write skrf object[s]
     read_all : read all skrf objects in a directory
@@ -203,7 +225,7 @@ def write(file, obj, overwrite = True):
     skrf.calibration.calibration.Calibration.write : write method of Calibration
 
 
-    '''
+    """
     if isinstance(file, str):
         extn = get_extn(file)
         if extn is None:
@@ -227,17 +249,16 @@ def write(file, obj, overwrite = True):
         pickle.dump(obj, fid, protocol=2)
         fid.close()
 
-def read_all(dir='.', contains = None, f_unit = None, obj_type=None, files=None):
-    '''
-    Read all skrf objects in a directory
-
+def read_all(dir: str ='.', contains = None, f_unit = None, obj_type=None, files: list=None, recursive=False) -> dict:
+    """
+    Read all skrf objects in a directory.
 
     Attempts to load all files in `dir`, using :func:`read`. Any file
     that is not readable by skrf is skipped. Optionally, simple filtering
     can be achieved through the use of `contains` argument.
 
     Parameters
-    --------------
+    ----------
     dir : str, optional
         the directory to load from, default  \'.\'
     contains : str, optional
@@ -249,16 +270,18 @@ def read_all(dir='.', contains = None, f_unit = None, obj_type=None, files=None)
         Name of skrf object types to read (ie 'Network')
     files : list, optional
         list of files to load, bypasses dir parameter.
+    recursive : bool, optional
+        If True, search in the specified directory and all other nested directories
 
     Returns
-    ---------
+    -------
     out : dictionary
         dictionary containing all loaded skrf objects. keys are the
         filenames without extensions, and the values are the objects
 
 
     Examples
-    ----------
+    --------
     >>> rf.read_all('skrf/data/')
     {'delay_short': 1-Port Network: 'delay_short',  75-110 GHz, 201 pts, z0=[ 50.+0.j],
     'line': 2-Port Network: 'line',  75-110 GHz, 201 pts, z0=[ 50.+0.j  50.+0.j],
@@ -281,23 +304,26 @@ def read_all(dir='.', contains = None, f_unit = None, obj_type=None, files=None)
     write : write skrf object[s]
     read_all : read all skrf objects in a directory
     write_all : write dictionary of skrf objects to a directory
-    '''
+    """
 
     out={}
-    
-    filelist = files
-    if files == None:
-        filelist = sorted(os.listdir(dir))
-    
+
+    filelist = []
+    if files is None:
+        if recursive:
+            if not dir.endswith(os.path.sep):
+                dir += os.path.sep
+            dir += '**'
+        for filename in glob.iglob(os.path.join(dir, '*.s*p'), recursive=recursive):
+            filelist.append(filename)
+    else:
+        filelist.extend(files)
+
     for filename in filelist:
         if contains is not None and contains not in filename:
             continue
-        if files == None:
-            fullname = os.path.join(dir,filename)
-            keyname = os.path.splitext(filename)[0]
-        else:
-            fullname = filename
-            keyname = os.path.splitext(os.path.basename(filename))[0]
+        fullname = filename
+        keyname = os.path.splitext(filename.split(os.path.sep)[-1])[0]
         try:
             out[keyname] = read(fullname)
             continue
@@ -325,7 +351,7 @@ def read_all(dir='.', contains = None, f_unit = None, obj_type=None, files=None)
 
 
 def read_all_networks(*args, **kwargs):
-    '''
+    """
     Read all networks in a directory.
 
     This is a convenience function. It just calls::
@@ -333,9 +359,9 @@ def read_all_networks(*args, **kwargs):
         read_all(*args,obj_type='Network', **kwargs)
 
     See Also
-    ----------
+    --------
     read_all
-    '''
+    """
     if 'f_unit' not in kwargs:
         kwargs.update({'f_unit':'ghz'})
     return read_all(*args,obj_type='Network', **kwargs)
@@ -343,7 +369,7 @@ def read_all_networks(*args, **kwargs):
 ran = read_all_networks
 
 def write_all(dict_objs, dir='.', *args, **kwargs):
-    '''
+    r"""
     Write a dictionary of skrf objects individual files in `dir`.
 
     Each object is written to its own file. The filename used for each
@@ -352,13 +378,13 @@ def write_all(dict_objs, dir='.', *args, **kwargs):
     of extensions. If you would like to write the dictionary to a single
     output file use :func:`write`.
 
-    Notes
-    -------
-    Any object in  dict_objs that is pickl-able will be written.
+
+    .. note::
+        Any object in  dict_objs that is pickl-able will be written.
 
 
     Parameters
-    ------------
+    ----------
     dict_objs : dict
         dictionary of skrf objects
     dir : str
@@ -368,21 +394,21 @@ def write_all(dict_objs, dir='.', *args, **kwargs):
             option may be of use.
 
     See Also
-    -----------
+    --------
     read : read a skrf object
     write : write skrf object[s]
     read_all : read all skrf objects in a directory
     write_all : write dictionary of skrf objects to a directory
 
     Examples
-    ----------
+    --------
     Writing a diction of different skrf objects
 
     >>> from skrf.data import line, short
     >>> d = {'ring_slot':ring_slot, 'one_port_cal':one_port_cal}
     >>> rf.write_all(d)
 
-    '''
+    """
     if not os.path.exists('.'):
         raise OSError('No such directory: %s'%dir)
 
@@ -409,7 +435,7 @@ def write_all(dict_objs, dir='.', *args, **kwargs):
             pass
 
 def save_sesh(dict_objs, file='skrfSesh.p', module='skrf', exclude_prefix='_'):
-    '''
+    """
     Save all `skrf` objects in the local namespace.
 
     This is used to save current workspace in a hurry, by passing it the
@@ -417,7 +443,7 @@ def save_sesh(dict_objs, file='skrfSesh.p', module='skrf', exclude_prefix='_'):
     used for other modules as well by passing a different `module` name.
 
     Parameters
-    ------------
+    ----------
     dict_objs : dict
         dictionary containing `skrf` objects. See the Example.
     file : str or file-object, optional
@@ -428,7 +454,7 @@ def save_sesh(dict_objs, file='skrfSesh.p', module='skrf', exclude_prefix='_'):
         dont save objects which have this as a prefix.
 
     See Also
-    ----------
+    --------
     read : read a skrf object
     write : write skrf object[s]
     read_all : read all skrf objects in a directory
@@ -436,13 +462,13 @@ def save_sesh(dict_objs, file='skrfSesh.p', module='skrf', exclude_prefix='_'):
 
 
     Examples
-    ---------
+    --------
     Write out all skrf objects in current namespace.
 
     >>> rf.write_all(locals(), 'mysesh.p')
 
 
-    '''
+    """
     objects = {}
     print('pickling: ')
     for k in dict_objs:
@@ -464,7 +490,7 @@ def save_sesh(dict_objs, file='skrfSesh.p', module='skrf', exclude_prefix='_'):
     write(file, objects)
 
 def load_all_touchstones(dir = '.', contains=None, f_unit=None):
-    '''
+    """
     Loads all touchtone files in a given dir into a dictionary.
 
     Notes
@@ -483,7 +509,7 @@ def load_all_touchstones(dir = '.', contains=None, f_unit=None):
 
     Returns
     ---------
-    ntwkDict : a dictonary with keys equal to the file name (without
+    ntwkDict : a dictionary with keys equal to the file name (without
             a suffix), and values equal to the corresponding ntwk types
 
     Examples
@@ -493,7 +519,7 @@ def load_all_touchstones(dir = '.', contains=None, f_unit=None):
     See Also
     -----------
     read_all
-    '''
+    """
     ntwkDict = {}
 
     for f in os.listdir (dir):
@@ -511,7 +537,7 @@ def load_all_touchstones(dir = '.', contains=None, f_unit=None):
     return ntwkDict
 
 def write_dict_of_networks(ntwkDict, dir='.'):
-    '''
+    """
     Saves a dictionary of networks touchstone files in a given directory
 
     The filenames assigned to the touchstone files are taken from
@@ -525,16 +551,16 @@ def write_dict_of_networks(ntwkDict, dir='.'):
             directory to write touchstone file to
 
 
-    '''
+    """
     warnings.warn('Deprecated. use write_all.', DeprecationWarning)
     for ntwkKey in ntwkDict:
         ntwkDict[ntwkKey].write_touchstone(filename = dir+'/'+ntwkKey)
 
 def read_csv(filename):
-    '''
+    """
     Read a 2-port s-parameter data from a csv file.
 
-    Specifically, this reads a two-port csv file saved from a Rohde Shcwarz
+    Specifically, this reads a two-port csv file saved from a Rohde Schwarz
     ZVA-40, and possibly other network analyzers. It returns into a
     :class:`Network` object.
 
@@ -547,7 +573,7 @@ def read_csv(filename):
     --------
     ntwk : :class:`Network` object
             the network representing data in the csv file
-    '''
+    """
 
     ntwk = Network(name=filename[:-4])
     try:
@@ -572,14 +598,14 @@ def read_csv(filename):
 ## file conversion
 def statistical_2_touchstone(file_name, new_file_name=None,\
         header_string='# GHz S RI R 50.0'):
-    '''
+    """
     Converts Statistical file to a touchstone file.
 
     Converts the file format used by Statistical and other Dylan Williams
     software to standard touchstone format.
 
     Parameters
-    ------------
+    ----------
     file_name : string
             name of file to convert
     new_file_name : string
@@ -587,13 +613,13 @@ def statistical_2_touchstone(file_name, new_file_name=None,\
     header_string : string
             touchstone header written to first beginning of file
 
-    '''
+    """
     if new_file_name is None:
         new_file_name = 'tmp-'+file_name
         remove_tmp_file = True
 
     # This breaks compatibility with python 2.6 and older
-    with file(file_name, 'r') as old_file, open(new_file_name, 'w') as new_file: 
+    with open(file_name, 'r') as old_file, open(new_file_name, 'w') as new_file:
         new_file.write('%s\n'%header_string)
         for line in old_file:
             new_file.write(line)
@@ -603,41 +629,42 @@ def statistical_2_touchstone(file_name, new_file_name=None,\
 
 def network_2_spreadsheet(ntwk, file_name =None, file_type= 'excel', form='db',
     *args, **kwargs):
-    '''
-    Write a Network object to a spreadsheet, for your boss
+    r"""
+    Write a Network object to a spreadsheet, for your boss.
 
     Write the s-parameters  of a network to a spreadsheet, in a variety
     of forms. This functions makes use of the pandas module, which in
     turn makes use of the xlrd module. These are imported during this
     function call. For more details about the file-writing functions
-    see the pandas.DataFrom.to_?? functions.
+    see the `pandas.DataFrom.to_???` functions.
 
-    Notes
-    ------
-    The frequency unit used in the spreadsheet is take from
-    `ntwk.frequency.unit`
+
+    .. note::
+        The frequency unit used in the spreadsheet is take from
+        `ntwk.frequency.unit`
+
 
     Parameters
-    -----------
+    ----------
     ntwk :  :class:`~skrf.network.Network` object
         the network to write
     file_name : str, None
         the file_name to write. if None,  ntwk.name is used.
     file_type : ['csv','excel','html']
-        the type of file to write. See pandas.DataFrame.to_??? functions.
+        the type of file to write. See `pandas.DataFrame.to_???` functions.
     form : 'db','ma','ri'
         format to write data,
         * db = db, deg
         * ma = mag, deg
         * ri = real, imag
     \*args, \*\*kwargs :
-        passed to pandas.DataFrame.to_??? functions.
+        passed to `pandas.DataFrame.to_???`  functions.
 
 
     See Also
-    ---------
+    --------
     networkset_2_spreadsheet : writes a spreadsheet for many networks
-    '''
+    """
     from pandas import DataFrame, Series # delayed because its not a requirement
     file_extns = {'csv':'csv','excel':'xls','html':'html'}
 
@@ -683,11 +710,11 @@ def network_2_spreadsheet(ntwk, file_name =None, file_type= 'excel', form='db',
         index_label='Freq(%s)'%ntwk.frequency.unit, *args, **kwargs)
 
 def network_2_dataframe(ntwk, attrs=['s_db'], ports = None):
-    '''
-    Convert one or more attributes of a network to a pandas DataFrame
+    """
+    Convert one or more attributes of a network to a pandas DataFrame.
 
     Parameters
-    --------------
+    ----------
     ntwk :  :class:`~skrf.network.Network` object
         the network to write
     attrs : list Network attributes
@@ -697,9 +724,9 @@ def network_2_dataframe(ntwk, attrs=['s_db'], ports = None):
         (like [[0,0]])
 
     Returns
-    ----------
+    -------
     df : pandas DataFrame Object
-    '''
+    """
     from pandas import DataFrame, Series # delayed because its not a requirement
     d = {}
     index =ntwk.frequency.f_scaled
@@ -714,51 +741,57 @@ def network_2_dataframe(ntwk, attrs=['s_db'], ports = None):
 
     return DataFrame(d)
 
-def networkset_2_spreadsheet(ntwkset, file_name=None, file_type= 'excel',
+def networkset_2_spreadsheet(ntwkset: 'NetworkSet', file_name: str = None, file_type: str = 'excel',
     *args, **kwargs):
-    '''
-    Write a NetworkSet object to a spreadsheet, for your boss
+    r"""
+    Write a NetworkSet object to a spreadsheet, for your boss.
 
     Write  the s-parameters  of a each network in the networkset to a
     spreadsheet. If the `excel` file_type is used, then each network,
     is written to its own sheet, with the sheetname taken from the
     network `name` attribute.
     This functions makes use of the pandas module, which in turn makes
-    use of the xlrd module. These are imported during this function
+    use of the xlrd module. These are imported during this function.
 
-    Notes
-    ------
-    The frequency unit used in the spreadsheet is take from
-    `ntwk.frequency.unit`
+
+    .. note::
+        The frequency unit used in the spreadsheet is take from
+        `ntwk.frequency.unit`
+
 
     Parameters
-    -----------
+    ----------
     ntwkset :  :class:`~skrf.networkSet.NetworkSet` object
         the network to write
     file_name : str, None
         the file_name to write. if None,  ntwk.name is used.
     file_type : ['csv','excel','html']
-        the type of file to write. See pandas.DataFrame.to_??? functions.
+        the type of file to write. See `pandas.DataFrame.to_???` functions.
     form : 'db','ma','ri'
         format to write data,
         * db = db, deg
         * ma = mag, deg
         * ri = real, imag
     \*args, \*\*kwargs :
-        passed to pandas.DataFrame.to_??? functions.
+        passed to `pandas.DataFrame.to_???` functions.
 
 
     See Also
-    ---------
+    --------
     networkset_2_spreadsheet : writes a spreadsheet for many networks
-    '''
+    """
     from pandas import DataFrame, Series, ExcelWriter # delayed because its not a requirement
     if ntwkset.name is None and file_name is None:
         raise(ValueError('Either ntwkset must have name or give a file_name'))
+    if file_name is None:
+        file_name = ntwkset.name
 
     if file_type == 'excel':
+        # add file extension if missing
+        if not file_name.endswith('.xlsx'):
+            file_name += '.xlsx'
         writer = ExcelWriter(file_name)
-        [network_2_spreadsheet(k, writer, sheet_name =k.name, *args, **kwargs) for k in ntwkset]
+        [network_2_spreadsheet(k, writer, sheet_name=k.name, *args, **kwargs) for k in ntwkset]
         writer.save()
     else:
         [network_2_spreadsheet(k,*args, **kwargs) for k in ntwkset]
@@ -780,15 +813,15 @@ else:
 
 
 class TouchstoneEncoder(json.JSONEncoder):
-    '''
+    """
     Serializes Network object by converting arrays to lists,
     splitting complex numbers into real and imaginary,
     and breaking down frequency objects into dicts.
-    '''
+    """
     def default(self, obj):
         if isinstance(obj, npy.ndarray):
             return obj.tolist()
-        if isinstance(obj, npy.complex):
+        if isinstance(obj, complex):
             return npy.real(obj), npy.imag(obj)  # split into [real, im]
         if isinstance(obj, Frequency):
             return {'flist': obj.f_scaled.tolist(), 'funit': obj.unit}
@@ -796,25 +829,25 @@ class TouchstoneEncoder(json.JSONEncoder):
 
 
 def to_json_string(network):
-    '''
+    """
     Dumps Network to JSON string. Faster than converting and saving as touchstone.
     Safer than pickling (no arbitrary code execution on load).
     :param network: :class:`~skrf.network.Network` object
         A Network object to be serialized and returned as a JSON string.
     :return: str
         JSON string representation of a network object.
-    '''
+    """
     return json.dumps(network.__dict__, cls=TouchstoneEncoder)
 
 
 def from_json_string(obj_string):
-    '''
+    """
     Loads network object from JSON string representation.
     :param obj_string: str
         JSON string representation of a network object.
     :return: :class:`~skrf.network.Network` object
         A Network object, rebuilt from JSON.
-    '''
+    """
     obj = json.loads(obj_string)
     ntwk = Network()
     ntwk.variables = obj['variables']

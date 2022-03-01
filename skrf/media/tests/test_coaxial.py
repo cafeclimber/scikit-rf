@@ -7,13 +7,13 @@ import numpy as npy
 from numpy.testing import assert_almost_equal, assert_array_almost_equal, run_module_suite
 
 class MediaTestCase(unittest.TestCase):
-    '''
+    """
 
-    '''
+    """
     def setUp(self):
-        '''
+        """
 
-        '''
+        """
         self.files_dir = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             'qucs_prj'
@@ -22,8 +22,8 @@ class MediaTestCase(unittest.TestCase):
 
 
     def test_line(self):
-        '''
-        '''
+        """
+        """
         fname = os.path.join(self.files_dir,\
                 'coaxial.s2p')
         qucs_ntwk = rf.Network(fname)
@@ -76,7 +76,7 @@ class MediaTestCase(unittest.TestCase):
         Test passing array as attenuation in the Coaxial classmethod
         `from_attenuation_VF_units`.
         """
-        # create a Coaxial media for frequency-dependant attenuation and 
+        # create a Coaxial media for frequency-dependent attenuation and 
         # test the resulting alpha values (real part of gamma)
         frequency = rf.Frequency(start=1, stop=2, unit='GHz', npoints=101)
         # k0k1k2 attenuation model

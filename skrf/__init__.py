@@ -1,12 +1,11 @@
-'''
+"""
 skrf is an object-oriented approach to microwave engineering,
 implemented in Python. 
-'''
+"""
 # Python 3 compatibility
 from __future__ import absolute_import, print_function, division
-from six.moves import xrange 
 
-__version__ = '0.15.5'
+__version__ = '0.21.0'
 ## Import all  module names for coherent reference of name-space
 #import io
 
@@ -26,6 +25,7 @@ from . import constants
 from . import util
 from . import io
 from . import instances
+from . import vectorFitting
 
 
 # Import contents into current namespace for ease of calling
@@ -41,7 +41,8 @@ from .tlineFunctions import *
 from .io import * 
 from .constants import * 
 from .taper import * 
-from .instances import * 
+from .instances import *
+from .vectorFitting import *
 
 # Try to import vi, but if except if pyvisa not installed
 try:

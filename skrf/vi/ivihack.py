@@ -1,5 +1,5 @@
-'''
-this is just a hack to allow ivi Drivers to be back-ward compatable 
+"""
+this is just a hack to allow ivi Drivers to be back-ward compatible 
 with the pyvisa GpibInstrument class. 
 
 Efforts are underway for a unification of visa/vxi and things by the 
@@ -7,8 +7,9 @@ group https://github.com/LabPy, so this hack will go way and the
 instrument backends will be cleaned up soon. 
 
 
-'''
+"""
 from ivi import Driver
+import numpy as npy
 
 try:
     # rename the ivi method so our legacy VI's still work

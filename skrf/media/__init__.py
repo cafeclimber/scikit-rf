@@ -1,5 +1,5 @@
 
-'''
+"""
 .. module:: skrf.media
 ========================================
 media (:mod:`skrf.media`)
@@ -15,7 +15,7 @@ by specific transmission line instances, such as
 :class:`~skrf.network.Network`'s for any transmission line medium, such
 as :func:`~media.Media.line` and :func:`~media.Media.delay_short`. These
 methods are inherited by the specific transmission line classes,
-which interally define relevant quantities such as propagation constant (`gamma`),
+which internally define relevant quantities such as propagation constant (`gamma`),
 and characteristic impedance (`Z0`). This allows the specific transmission line
 mediums to produce networks without re-implementing methods for
 each specific media instance.
@@ -34,13 +34,14 @@ Media base-class
 
 
 
-'''
+"""
 
 from .media import *
 from .distributedCircuit import DistributedCircuit
 from .freespace import Freespace
 from .cpw import CPW
 from .rectangularWaveguide import RectangularWaveguide
+from .circularWaveguide import CircularWaveguide
 from .coaxial import Coaxial
 from .mline import MLine
 from .definedAEpTandZ0 import DefinedAEpTandZ0

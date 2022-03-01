@@ -5,7 +5,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'scikit-rf'
-copyright = '2020, scikit-rf team'
+copyright = '2021, scikit-rf team'
 author = 'scikit-rf team'
 
 # -- General configuration ---------------------------------------------------
@@ -38,6 +38,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'sphinx.ext.intersphinx',
     'nbsphinx',
     #'inheritance_diagram',
     'IPython.sphinxext.ipython_directive',
@@ -64,6 +65,9 @@ nbsphinx_kernel_name = 'python'
 numpydoc_show_class_members = False
 nbsphinx_timeout = 120
 
+# Autodoc settings
+autodoc_typehints = "description"
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -83,14 +87,14 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', "**/*.rst.rst", '**.ipyn
 # built documents.
 #
 # The short X.Y version.
-'''
+"""
 setup_lines = open('../../setup.py').readlines()
 version = VERSION#'vUndefined'
 for l in setup_lines:
     if l.startswith('VERSION'):
         version = l.split("'")[1]
         break
-'''
+"""
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -189,7 +193,8 @@ man_pages = [
 
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
-    'http://docs.python.org/': None,
-    'http://docs.scipy.org/doc/numpy': None,
-    'http://docs.scipy.org/doc/scipy/reference': None,
-    }
+    'python': ('http://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable', None),
+    'pd': ('https://pandas.pydata.org/docs', None),
+    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
+}
