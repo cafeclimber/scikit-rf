@@ -1,4 +1,3 @@
-
 """
 .. module:: skrf.vi
 
@@ -161,7 +160,5 @@ following manner inside vna object methods:
 
 
 """
-__test__=False
-all = ['vna','sa','stages']
-
-
+__test__ = False
+all = ["vna"]
