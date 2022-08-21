@@ -2,6 +2,7 @@
 import unittest
 import os
 import numpy as npy
+from numpy.testing import run_module_suite
 
 
 from skrf.media import DefinedGammaZ0, Media
@@ -24,61 +25,221 @@ class DefinedGammaZ0TestCase(unittest.TestCase):
 
     def test_impedance_mismatch(self):
         """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
         """
-        fname = os.path.join(self.files_dir,\
-                'impedanceMismatch,50to25.s2p')
-        qucs_ntwk = Network(fname)
+        name = 'impedanceMismatch,50to25'
+        qucs_ntwk = Network(os.path.join(self.files_dir, name + '.s2p'))
         self.dummy_media.frequency = qucs_ntwk.frequency
-        skrf_ntwk = self.dummy_media.thru(z0=50)**\
+        skrf_ntwk = self.dummy_media.thru(z0=50, name = name)**\
             self.dummy_media.thru(z0=25)
 
         self.assertEqual(qucs_ntwk, skrf_ntwk)
+        self.assertEqual(qucs_ntwk.name, skrf_ntwk.name)
+        
+    def test_tee(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'tee'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.tee(name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+        
+    def test_splitter(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'splitter'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.splitter(3, name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+        
+    def test_thru(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'thru'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.thru(name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+        
+    def test_line(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'line'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.line(90, 'deg', name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+        
+    def test_delay_load(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'delay_load'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.delay_load(1j, 90, 'deg',
+                                                      name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+    
+    def test_shunt_delay_load(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'shunt_delay_load'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.shunt_delay_load(1j, 90, 'deg',
+                                                      name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+        
+    def test_delay_open(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'delay_open'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.delay_open(90, 'deg', name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+        
+    def test_shunt_delay_open(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'shunt_delay_open'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.shunt_delay_open(90, 'deg', name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+        
+    def test_delay_short(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'delay_short'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.delay_short(90, 'deg', name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+        
+    def test_shunt_delay_short(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'shunt_delay_short'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.shunt_delay_short(90, 'deg', name = name)
+        self.assertEqual(name, skrf_ntwk.name)
 
     def test_resistor(self):
         """
+        Compare the component values against s-parameters generated by QUCS.
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
         """
-        fname = os.path.join(self.files_dir,\
-                'resistor,1ohm.s2p')
-        qucs_ntwk = Network(fname)
+        name = 'resistor,1ohm'
+        qucs_ntwk = Network(os.path.join(self.files_dir, name + '.s2p'))
         self.dummy_media.frequency = qucs_ntwk.frequency
-        skrf_ntwk = self.dummy_media.resistor(1)
+        skrf_ntwk = self.dummy_media.resistor(1, name = name)
         self.assertEqual(qucs_ntwk, skrf_ntwk)
+        self.assertEqual(qucs_ntwk.name, skrf_ntwk.name)
 
     def test_capacitor(self):
         """
+        Compare the component values against s-parameters generated by QUCS.
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
         """
-        fname = os.path.join(self.files_dir,\
-                'capacitor,p01pF.s2p')
-        qucs_ntwk = Network(fname)
+        name = 'capacitor,p01pF'
+        qucs_ntwk = Network(os.path.join(self.files_dir, name + '.s2p'))
         self.dummy_media.frequency = qucs_ntwk.frequency
-        skrf_ntwk = self.dummy_media.capacitor(.01e-12)
+        skrf_ntwk = self.dummy_media.capacitor(.01e-12, name = name)
         self.assertEqual(qucs_ntwk, skrf_ntwk)
+        self.assertEqual(qucs_ntwk.name, skrf_ntwk.name)
+        
+    def test_shunt_capacitor(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'shunt_capacitor,p01pF'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.capacitor(.01e-12, name = name)
+        self.assertEqual(name, skrf_ntwk.name)
 
 
     def test_inductor(self):
         """
+        Compare the component values against s-parameters generated by QUCS.
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
         """
-        fname = os.path.join(self.files_dir,\
-                'inductor,p1nH.s2p')
-        qucs_ntwk = Network(fname)
+        name = 'inductor,p1nH'
+        qucs_ntwk = Network(os.path.join(self.files_dir, name + '.s2p'))
         self.dummy_media.frequency = qucs_ntwk.frequency
-        skrf_ntwk = self.dummy_media.inductor(.1e-9)
+        skrf_ntwk = self.dummy_media.inductor(.1e-9, name = name)
         self.assertEqual(qucs_ntwk, skrf_ntwk)
+        self.assertEqual(qucs_ntwk.name, skrf_ntwk.name)
+        
+    def test_shunt_inductor(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'shunt_inductor,p1nH'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.inductor(.1e-9, name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+        
+    def test_attenuator(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'attenuator,-10dB'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.attenuator(-10, d = 90, unit = 'deg',
+                                                name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+        
+    def test_lossless_mismatch(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'lossless_mismatch,-10dB'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.lossless_mismatch(-10, name = name)
+        self.assertEqual(name, skrf_ntwk.name)
+    
+    def test_isolator(self):
+        """
+        Test the naming of the network. When circuit is used to connect a
+        topology of networks, they should have unique names.
+        """
+        name = 'isolator'
+        self.dummy_media.frequency = Frequency(1, 1, 1, 'GHz')
+        skrf_ntwk = self.dummy_media.isolator(name = name)
+        self.assertEqual(name, skrf_ntwk.name)
 
 
     def test_scalar_gamma_z0_media(self):
         """
         test ability to create a Media from scalar quantities for gamma/z0
-        and change frequency resolution
         """
-        a = DefinedGammaZ0 (Frequency(1,10,101),gamma=1j,z0 = 50)
-        self.assertEqual(a.line(1),a.line(1))
-
-        # we should be able to re-sample the media
-        a.npoints = 21
-        self.assertEqual(len(a.gamma), len(a))
-        self.assertEqual(len(a.z0), len(a))
-        self.assertEqual(len(a.z0), len(a))
+        freq = Frequency(1,10,101)
+        a = DefinedGammaZ0(freq, gamma=1j, z0=50)
+        self.assertEqual(len(freq), len(a))
+        self.assertEqual(len(freq), len(a.gamma))
+        self.assertEqual(len(freq), len(a.z0))
 
 
     def test_vector_gamma_z0_media(self):
@@ -90,12 +251,10 @@ class DefinedGammaZ0TestCase(unittest.TestCase):
                            gamma = 1j*npy.ones(len(freq)) ,
                            z0 =  50*npy.ones(len(freq)),
                             )
-
-
-        self.assertEqual(a.line(1),a.line(1))
-        with self.assertRaises(NotImplementedError):
-            a.npoints=4
-
+        self.assertEqual(len(freq), len(a))
+        self.assertEqual(len(freq), len(a.gamma))
+        self.assertEqual(len(freq), len(a.z0))
+        
     def test_write_csv(self):
         fname = os.path.join(self.files_dir,\
                 'out.csv')
@@ -355,3 +514,58 @@ class ABCDTwoPortsNetworkTestCase(unittest.TestCase):
         npy.testing.assert_array_almost_equal(ntw.a[:,0,1], z0*npy.sinh(gamma*l))
         npy.testing.assert_array_almost_equal(ntw.a[:,1,0], 1.0/z0*npy.sinh(gamma*l))
         npy.testing.assert_array_almost_equal(ntw.a[:,1,1], npy.cosh(gamma*l))
+
+class DefinedGammaZ0_s_def(unittest.TestCase):
+    """Test various media constructs with complex ports and different s_def"""
+
+    def test_complex_ports(self):
+        m = DefinedGammaZ0(
+            frequency = Frequency(1,1,1,'ghz'),
+            gamma=1j,
+            z0 = 50,
+            Z0 = 10+20j,
+            )
+        self.assertTrue(m.Z0.imag != 0)
+
+        # Powerwave short is -Z0.conj()/Z0
+        short = m.short(z0=m.Z0, s_def='power')
+        self.assertTrue(short.s != -1)
+        # Should be -1 when converted to traveling s_def
+        npy.testing.assert_allclose(short.s_traveling, -1)
+
+        short = m.short(z0=m.Z0, s_def='traveling')
+        npy.testing.assert_allclose(short.s, -1)
+
+        short = m.short(z0=m.Z0, s_def='pseudo')
+        npy.testing.assert_allclose(short.s, -1)
+
+        # Mismatches agree with real port impedances
+        mismatch_traveling = m.impedance_mismatch(z1=10, z2=50, s_def='traveling')
+        mismatch_pseudo = m.impedance_mismatch(z1=10, z2=50, s_def='pseudo')
+        mismatch_power = m.impedance_mismatch(z1=10, z2=50, s_def='power')
+        npy.testing.assert_allclose(mismatch_traveling.s, mismatch_pseudo.s)
+        npy.testing.assert_allclose(mismatch_traveling.s, mismatch_power.s)
+
+        mismatch_traveling = m.impedance_mismatch(z1=10+10j, z2=50-20j, s_def='traveling')
+        mismatch_pseudo = m.impedance_mismatch(z1=10+10j, z2=50-20j, s_def='pseudo')
+        mismatch_power = m.impedance_mismatch(z1=10+10j, z2=50-20j, s_def='power')
+
+        # Converting thru to new impedance should give impedance mismatch.
+        # The problem is that thru Z-parameters have infinities
+        # and renormalization goes through Z-parameters making
+        # it very inaccurate.
+        thru_traveling = m.thru(s_def='traveling')
+        thru_traveling.renormalize(z_new=[10+10j,50-20j])
+        thru_pseudo = m.thru(s_def='pseudo')
+        thru_pseudo.renormalize(z_new=[10+10j,50-20j])
+        thru_power = m.thru(s_def='power')
+        thru_power.renormalize(z_new=[10+10j,50-20j])
+
+        npy.testing.assert_allclose(thru_traveling.s, mismatch_traveling.s, rtol=1e-3)
+        npy.testing.assert_allclose(thru_pseudo.s, mismatch_pseudo.s, rtol=1e-3)
+        npy.testing.assert_allclose(thru_power.s, mismatch_power.s, rtol=1e-3)
+
+if __name__ == "__main__":
+    # Launch all tests
+    run_module_suite()
+    

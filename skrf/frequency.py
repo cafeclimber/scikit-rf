@@ -146,7 +146,6 @@ class Frequency(object):
 
         """
         self._unit = unit.lower()
-        self.sweep_type = sweep_type
 
         start =  self.multiplier * start
         stop = self.multiplier * stop
@@ -224,16 +223,16 @@ class Frequency(object):
             else:
                 raise ValueError()
             try:
-                output.f = npy.array(output.f[slicer]).reshape(-1)
+                output._f = npy.array(output.f[slicer]).reshape(-1)
                 return output
             except(IndexError):
                 raise IndexError('slicing frequency is incorrect')
 
 
         if output.f.shape[0] > 0:
-            output.f = npy.array(output.f[key]).reshape(-1)
+            output._f = npy.array(output.f[key]).reshape(-1)
         else:
-            output.f = npy.empty(shape=(0))
+            output._f = npy.empty(shape=(0))
 
         return output
 
@@ -271,7 +270,7 @@ class Frequency(object):
         if npy.isscalar(f):
             f = [f]
         temp_freq =  cls(0,0,0,*args, **kwargs)
-        temp_freq.f = npy.array(f) * temp_freq.multiplier
+        temp_freq._f = npy.array(f) * temp_freq.multiplier
         temp_freq.check_monotonic_increasing()
 
         return temp_freq
@@ -383,7 +382,9 @@ class Frequency(object):
         """
         Set the number of points in the frequency.
         """
-
+        warnings.warn('Possibility to set the npoints parameter will removed in the next release.',
+             DeprecationWarning, stacklevel=2)
+        
         if self.sweep_type == 'lin':
             self.f = linspace(self.start, self.stop, n)
         elif self.sweep_type == 'log':
@@ -478,7 +479,7 @@ class Frequency(object):
         """
 
         return self._f
-
+    
     @f.setter
     def f(self,new_f: NumberLike) -> None:
         """
@@ -489,16 +490,10 @@ class Frequency(object):
         InvalidFrequencyWarning:
             If frequency points are not monotonously increasing
         """
+        warnings.warn('Possibility to set the f parameter will removed in the next release.',
+             DeprecationWarning, stacklevel=2)
+        
         self._f = npy.array(new_f)
-
-        if npy.allclose(    self._f,
-                            linspace(self._f[0], self._f[-1], len(self._f))):
-            self.sweep_type = 'lin'
-        elif self._f[0] and npy.allclose(  self._f,
-                            geomspace(self._f[0], self._f[-1], len(self._f))):
-            self.sweep_type = 'log'
-        else:
-            self.sweep_type = 'unknown'
 
         self.check_monotonic_increasing()
 
@@ -681,6 +676,25 @@ class Frequency(object):
 
         """
         return overlap_freq(self, f2)
+
+    @property
+    def sweep_type(self) -> str:
+        """
+        Frequency sweep type.
+
+        Returns
+        -------
+        sweep_type: str
+            'lin' if linearly increasing, 'log' or 'unknown'.
+
+        """
+        if npy.allclose(self.f, linspace(self.f[0], self.f[-1], self.npoints)):
+            sweep_type = 'lin'
+        elif self.f[0] and npy.allclose(self.f, geomspace(self.f[0], self.f[-1], self.npoints)):
+            sweep_type = 'log'
+        else:
+            sweep_type = 'unknown'
+        return sweep_type
 
 
 def overlap_freq(f1: 'Frequency',f2: 'Frequency') -> Frequency:
