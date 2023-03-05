@@ -337,7 +337,7 @@ class NetworkSetTestCase(unittest.TestCase):
         self.assertIsInstance(self.ns_params.interpolate_from_params('a', 0.5, {'X':10}), rf.Network)
         
         # test interpolated values
-        f1 = rf.Frequency(1, 1, 1)
+        f1 = rf.Frequency(1, 1, 1, unit='GHz')
         ntwk0 = rf.Network(frequency=f1, s=[[0]], params={'s': 0})
         ntwk1 = rf.Network(frequency=f1, s=[[1]], params={'s': 1})
         ns2 = rf.NetworkSet([ntwk0, ntwk1])
@@ -393,7 +393,8 @@ class NetworkSetTestCase(unittest.TestCase):
                                   values=self.ns_params.params_values, 
                                   data_types=self.ns_params.params_types)
         ns_params = rf.NetworkSet.from_mdif(test_file)
-        self.assertEqual(ns_params, self.ns_params)     
+        self.assertEqual(ns_params, self.ns_params)
+        os.remove(test_file)
         
     def test_from_citi(self):
         """ Create NetworkSets from CITI files """

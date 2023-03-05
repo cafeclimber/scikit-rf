@@ -1,6 +1,7 @@
-# -*- coding: utf-8 -*-
 import unittest
 import os
+
+import pytest
 import skrf as rf
 from skrf.media import Coaxial
 import numpy as npy
@@ -95,7 +96,7 @@ class MediaTestCase(unittest.TestCase):
             coax = Coaxial.from_attenuation_VF(frequency=frequency2, att=att)
 
     def test_R(self):
-        freq = rf.Frequency(0, 100, 2)
+        freq = rf.Frequency(0, 100, 2, unit='GHz')
 
         rho = 1e-7
         dint = 0.44e-3
@@ -105,10 +106,11 @@ class MediaTestCase(unittest.TestCase):
 
         # Old R calculation valid only when skin depth is much smaller
         # then inner conductor radius
-        R_simple = coax.Rs/(2*npy.pi)*(1/coax.a + 1/coax.b)
+        with pytest.warns(RuntimeWarning, match="divide by zero"):
+            R_simple = coax.Rs/(2*npy.pi)*(1/coax.a + 1/coax.b)
 
-        self.assertTrue(abs(1 - coax.R[0]/dc_res) < 1e-2)
-        self.assertTrue(abs(1 - coax.R[1]/R_simple[1]) < 1e-2)
+            self.assertTrue(abs(1 - coax.R[0]/dc_res) < 1e-2)
+            self.assertTrue(abs(1 - coax.R[1]/R_simple[1]) < 1e-2)
 
 if __name__ == "__main__":
     # Launch all tests

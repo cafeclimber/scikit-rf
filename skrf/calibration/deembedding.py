@@ -61,8 +61,8 @@ import numpy as np
 from numpy import concatenate, conj, flip, real, angle, exp, zeros
 from numpy.fft import fft, fftshift, irfft, ifftshift
 from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
 
+from ..util import subplots
 
 class Deembedding(ABC):
     """
@@ -107,9 +107,9 @@ class Deembedding(ABC):
        # ensure all the dummy Networks' frequency's are the same
         for dmyntwk in dummies:
             if dummies[0].frequency != dmyntwk.frequency:
-                raise(ValueError('Dummy Networks dont have matching frequencies.'))
-
-        # TODO: attempt to interpolate if frequencies do not match
+                warnings.warn('Dummy Networks dont have matching frequencies, attempting overlap.', RuntimeWarning)
+                dummies = overlap_multi(dummies)
+                break
 
         self.frequency = dummies[0].frequency
         self.dummies = dummies
@@ -236,17 +236,16 @@ class OpenShort(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.open.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
-
-        # TODO: attempt to interpolate if frequencies do not match
-
-        caled = ntwk.copy()
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            caled, op, sh = overlap_multi([ntwk, self.open, self.short])
+        else:
+            caled, op, sh = ntwk.copy(), self.open, self.short
 
         # remove parallel parasitics from the short dummy
-        deembeded_short = self.short.copy()
-        deembeded_short.y = self.short.y - self.open.y
+        deembeded_short = sh.copy()
+        deembeded_short.y = sh.y - op.y
         # remove parallel parasitics from the dut
-        caled.y = ntwk.y - self.open.y
+        caled.y = caled.y - op.y
         # remove series parasitics from the dut
         caled.z = caled.z - deembeded_short.z
 
@@ -330,14 +329,14 @@ class Open(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.open.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
-
-        # TODO: attempt to interpolate if frequencies do not match
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, op = overlap_multi([ntwk, self.open])
+        else:
+            op = self.open
 
         caled = ntwk.copy()
-
         # remove open parasitics
-        caled.y = ntwk.y - self.open.y
+        caled.y = ntwk.y - op.y
 
         return caled
 
@@ -428,17 +427,17 @@ class ShortOpen(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.open.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
-
-        # TODO: attempt to interpolate if frequencies do not match
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, op, sh = overlap_multi([ntwk, self.open, self.short])
+        else:
+            op, sh = self.open, self.short
 
         caled = ntwk.copy()
-
         # remove series parasitics from the open dummy
-        deembeded_open = self.open.copy()
-        deembeded_open.z = self.open.z - self.short.z
+        deembeded_open = op.copy()
+        deembeded_open.z = op.z - sh.z
         # remove parallel parasitics from the dut
-        caled.z = ntwk.z - self.short.z
+        caled.z = ntwk.z - sh.z
         # remove series parasitics from the dut
         caled.y = caled.y - deembeded_open.y
 
@@ -524,14 +523,14 @@ class Short(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.short.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
-
-        # TODO: attempt to interpolate if frequencies do not match
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, sh = overlap_multi([ntwk, self.short])
+        else:
+            sh = self.short
 
         caled = ntwk.copy()
-
         # remove short parasitics
-        caled.z = ntwk.z - self.short.z
+        caled.z = ntwk.z - sh.z
 
         return caled
 
@@ -618,16 +617,17 @@ class SplitPi(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.thru.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, thru = overlap_multi([ntwk, self.thru])
+        else:
+            thru = self.thru
 
-        # TODO: attempt to interpolate if frequencies do not match
-
-        left = self.thru.copy()
+        left = thru.copy()
         left_y = left.y
-        left_y[:,0,0] = (self.thru.y[:,0,0] - self.thru.y[:,1,0] + self.thru.y[:,1,1] - self.thru.y[:,0,1]) / 2
-        left_y[:,0,1] = self.thru.y[:,1,0] + self.thru.y[:,0,1]
-        left_y[:,1,0] = self.thru.y[:,1,0] + self.thru.y[:,0,1]
-        left_y[:,1,1] = - self.thru.y[:,1,0] - self.thru.y[:,0,1]
+        left_y[:,0,0] = (thru.y[:,0,0] - thru.y[:,1,0] + thru.y[:,1,1] - thru.y[:,0,1]) / 2
+        left_y[:,0,1] = thru.y[:,1,0] + thru.y[:,0,1]
+        left_y[:,1,0] = thru.y[:,1,0] + thru.y[:,0,1]
+        left_y[:,1,1] = - thru.y[:,1,0] - thru.y[:,0,1]
         left.y = left_y
         right = left.flipped()
         caled = left.inv ** ntwk ** right.inv
@@ -717,16 +717,17 @@ class SplitTee(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.thru.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, thru = overlap_multi([ntwk, self.thru])
+        else:
+            thru = self.thru
 
-        # TODO: attempt to interpolate if frequencies do not match
-
-        left = self.thru.copy()
+        left = thru.copy()
         left_z = left.z
-        left_z[:,0,0] = (self.thru.z[:,0,0] + self.thru.z[:,1,0] + self.thru.z[:,1,1] + self.thru.z[:,0,1]) / 2
-        left_z[:,0,1] = self.thru.z[:,1,0] + self.thru.z[:,0,1]
-        left_z[:,1,0] = self.thru.z[:,1,0] + self.thru.z[:,0,1]
-        left_z[:,1,1] = self.thru.z[:,1,0] + self.thru.z[:,0,1]
+        left_z[:,0,0] = (thru.z[:,0,0] + thru.z[:,1,0] + thru.z[:,1,1] + thru.z[:,0,1]) / 2
+        left_z[:,0,1] = thru.z[:,1,0] + thru.z[:,0,1]
+        left_z[:,1,0] = thru.z[:,1,0] + thru.z[:,0,1]
+        left_z[:,1,1] = thru.z[:,1,0] + thru.z[:,0,1]
         left.z = left_z
         right = left.flipped()
         caled = left.inv ** ntwk ** right.inv
@@ -819,12 +820,13 @@ class AdmittanceCancel(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.thru.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
-
-        # TODO: attempt to interpolate if frequencies do not match
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, thru = overlap_multi([ntwk, self.thru])
+        else:
+            thru = self.thru
 
         caled = ntwk.copy()
-        h = ntwk ** self.thru.inv
+        h = ntwk ** thru.inv
         h_ = h.flipped()
         caled.y = (h.y + h_.y) / 2
 
@@ -919,12 +921,13 @@ class ImpedanceCancel(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.thru.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
-
-        # TODO: attempt to interpolate if frequencies do not match
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, thru = overlap_multi([ntwk, self.thru])
+        else:
+            thru = self.thru
 
         caled = ntwk.copy()
-        h = ntwk ** self.thru.inv
+        h = ntwk ** thru.inv
         h_ = h.flipped()
         caled.z = (h.z + h_.z) / 2
 
@@ -972,6 +975,15 @@ class IEEEP370_SE_NZC_2xThru(Deembedding):
          +----+   +----+   +----+
         -|1  2|---|1  2|---|2  1|-
          +----+   +----+   +----+
+         
+
+    Warning
+    -------
+    There are two differences compared to the original matlab implementation
+    [I3E370]:
+        - FIX-2 is flipped (see diagram above)
+        - A more robust root choice solution is used that avoids the apparition
+          of 180° phase jumps in the fixtures in certain circumstances
          
     References
     ----------
@@ -1065,11 +1077,14 @@ class IEEEP370_SE_NZC_2xThru(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.s2xthru.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, s2xthru = overlap_multi([ntwk, self.s2xthru])
+            s_side1, s_side2 = self.split2xthru(s2xthru)
+        else:
+            s_side1 = self.s_side1
+            s_side2 = self.s_side2
 
-        # TODO: attempt to interpolate if frequencies do not match
-
-        return self.s_side1.inv ** ntwk ** self.s_side2.flipped().inv
+        return s_side1.inv ** ntwk ** s_side2.flipped().inv
     
     def dc_interp(self, s, f):
         """
@@ -1159,14 +1174,14 @@ class IEEEP370_SE_NZC_2xThru(Deembedding):
                 f_original = f
                 df = f[1] - f[0]
                 projected_n = round(f[-1]/f[0])
-                if(projected_n < 10000):
+                if(projected_n <= 10000):
                     fnew = f[0] * (np.arange(0, projected_n) + 1)
                 else:
                     dfnew = f[-1]/10000
                     fnew = dfnew * (np.arange(0, 10000) + 1)
                 stemp = Network(frequency = Frequency.from_f(f, 'Hz'), s = s)
                 f_interp = Frequency.from_f(fnew, unit = 'Hz')
-                stemp.interpolate_self(f_interp, kind = 'linear',
+                stemp.interpolate_self(f_interp, kind = 'cubic',
                                        fill_value = 'extrapolate')
                 f = fnew
                 s = stemp.s
@@ -1196,15 +1211,13 @@ class IEEEP370_SE_NZC_2xThru(Deembedding):
                 z11x = z11[x]
 
             if self.verbose:
-                fig = plt.figure()
+                fig, (ax1, ax2) = subplots(2,1)
                 fig.suptitle('Midpoint length and impedance determination')
-                ax1 = plt.subplot(2, 1, 1)
                 ax1.plot(t21, label = 't21')
                 ax1.plot([x], [t21[x]], marker = 'o', linestyle = 'none',
                             label = 't21x')
                 ax1.grid()
                 ax1.legend()
-                ax2 = plt.subplot(2, 1, 2, sharex = ax1)
                 ax2.plot(z11, label = 'z11')
                 ax2.plot([x], [z11x], marker = 'o', linestyle = 'none',
                             label = 'z11x')
@@ -1263,40 +1276,43 @@ class IEEEP370_SE_NZC_2xThru(Deembedding):
             #     # mhuser : is it a problem with complex value cast to real here ?
             #     e10[i] = k * np.sqrt(s12r[i] * (1 - e111[i] * e112[i]))
             
-            # elegant way to avoid 180° phase jumps in case of phase noise
             # calc e01 and e10
-            e10e01 = 0.5 * (s12r + s21r) * (1 - e111 * e112)
-            e01 = np.sqrt(e10e01)
-            e10 = zeros(n, dtype = complex)
+            # avoid 180° phase jumps in case of phase noise
+            e01 = np.sqrt(s21r * (1 - e111 * e112))
             for i in range(n):
                 if i > 0:
                     if npy.abs(-e01[i] - e01[i-1]) < npy.abs(e01[i] - e01[i-1]):
-                        e01[i] *= -1
-                e10[i] = e10e01[i] / e01[i]
+                        e01[i] = - e01[i]
+            e10 = np.sqrt(s12r * (1 - e111 * e112))
+            for i in range(n):
+                if i > 0:
+                    if npy.abs(-e10[i] - e10[i-1]) < npy.abs(e10[i] - e10[i-1]):
+                        e10[i] = - e10[i]
+                    
             
             # revert to initial freq axis
             if flag_df:
-                interp_e001 = interp1d(f, e001, kind = 'linear',
+                interp_e001 = interp1d(f, e001, kind = 'cubic',
                                 fill_value = 'extrapolate',
                                 assume_sorted = True)
                 e001 = interp_e001(f_original)
-                interp_e01 = interp1d(f, e01, kind = 'linear',
+                interp_e01 = interp1d(f, e01, kind = 'cubic',
                                 fill_value = 'extrapolate',
                                 assume_sorted = True)
                 e01 = interp_e01(f_original)
-                interp_e111 = interp1d(f, e111, kind = 'linear',
+                interp_e111 = interp1d(f, e111, kind = 'cubic',
                                 fill_value = 'extrapolate',
                                 assume_sorted = True)
                 e111 = interp_e111(f_original)
-                interp_e002 = interp1d(f, e002, kind = 'linear',
+                interp_e002 = interp1d(f, e002, kind = 'cubic',
                                 fill_value = 'extrapolate',
                                 assume_sorted = True)
                 e002 = interp_e002(f_original)
-                interp_e10 = interp1d(f, e10, kind = 'linear',
+                interp_e10 = interp1d(f, e10, kind = 'cubic',
                                 fill_value = 'extrapolate',
                                 assume_sorted = True)
                 e10 = interp_e10(f_original)
-                interp_e112 = interp1d(f, e112, kind = 'linear',
+                interp_e112 = interp1d(f, e112, kind = 'cubic',
                                 fill_value = 'extrapolate',
                                 assume_sorted = True)
                 e112 = interp_e112(f_original)
@@ -1433,6 +1449,15 @@ class IEEEP370_MM_NZC_2xThru(Deembedding):
         -|2  4|---|2  4|---|4  2|-
          +----+   +----+   +----+
     
+
+    Warning
+    -------
+    There are two differences compared to the original matlab implementation
+    [I3E370]:
+        - FIX-2 is flipped (see diagram above)
+        - A more robust root choice solution is used that avoids the apparition
+          of 180° phase jumps in the fixtures in certain circumstances
+    
     References
     ----------
     .. [ElSA20] Ellison J, Smith SB, Agili S., "Using a 2x-thru standard to achieve
@@ -1536,9 +1561,12 @@ class IEEEP370_MM_NZC_2xThru(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.s2xthru.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
-
-        # TODO: attempt to interpolate if frequencies do not match
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, s2xthru = overlap_multi([ntwk, self.s2xthru])
+            se_side1, se_side2 = self.split2xthru(s2xthru)
+        else:
+            se_side1 = self.se_side1
+            se_side2 = self.se_side2
         
         # check if 4-port
         if ntwk.nports != 4:
@@ -1555,7 +1583,7 @@ class IEEEP370_MM_NZC_2xThru(Deembedding):
             new_order = list(range(0, N//2)) + list(range(N-1, N//2-1, -1))
             ntwk.renumber(old_order, new_order)
 
-        deembedded = self.se_side1.inv ** ntwk ** self.se_side2.flipped().inv
+        deembedded = se_side1.inv ** ntwk ** se_side2.flipped().inv
         #renumber back if required
         if self.port_order != 'second':
             deembedded.renumber(new_order, old_order)
@@ -1654,6 +1682,13 @@ class IEEEP370_SE_ZC_2xThru(Deembedding):
         -|1  2|---|1  2|---|2  1|-
          +----+   +----+   +----+
          
+
+    Warning
+    -------
+    There is one difference compared to the original matlab implementation
+    [I3E370]:
+        - FIX-2 is flipped (see diagram above)
+         
     References
     ----------
     .. [I3E370] https://opensource.ieee.org/elec-char/ieee-370/-/blob/master/TG1/IEEEP370Zc2xThru.m
@@ -1749,11 +1784,15 @@ class IEEEP370_SE_ZC_2xThru(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.s2xthru.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, s2xthru = overlap_multi([ntwk, self.s2xthru])
+            s_side1, s_side2 = self.split2xthru(s2xthru,
+                                                      self.sfix_dut_fix)
+        else:
+            s_side1 = self.s_side1
+            s_side2 = self.s_side2
 
-        # TODO: attempt to interpolate if frequencies do not match
-
-        return self.s_side1.inv ** ntwk ** self.s_side2.flipped().inv
+        return s_side1.inv ** ntwk ** s_side2.flipped().inv
     
     def thru(self, n):
         out = n.copy();
@@ -1856,7 +1895,7 @@ class IEEEP370_SE_ZC_2xThru(Deembedding):
         X = nin.nports
         fend = f[-1]
         if TD is None:
-            TD = np.zeros((X))
+            TD = np.zeros(X)
             for i in range(X):
                 theta0 = np.angle(p[-1, i, i])
                 if theta0 < -np.pi/2:
@@ -2046,7 +2085,7 @@ class IEEEP370_SE_ZC_2xThru(Deembedding):
             s22dut = s_dut.s[:, 1, 1]
             if self.verbose:
                 if i == 0:
-                    fig, axs = plt.subplots(2, 2)
+                    fig, axs = subplots(2, 2)
                     axs[0, 0].plot(z1, color = 'k')
                     axs[0, 0].set_xlim((0, x))
                     axs[0, 1].plot(z2, color = 'k')
@@ -2092,7 +2131,7 @@ class IEEEP370_SE_ZC_2xThru(Deembedding):
             s11dut = s_dut.s[:, 0, 0]
             if self.verbose:
                 if i == 0:
-                    fig, axs = plt.subplots(1, 2)
+                    fig, axs = subplots(1, 2)
                     axs[0].plot(z1, color = 'k')
                     axs[0].set_xlim((0, x))
                     axs[1].set_xlim((n-100, n+x*2+10))
@@ -2134,16 +2173,17 @@ class IEEEP370_SE_ZC_2xThru(Deembedding):
             projected_n = np.floor(f[-1]/f[0])
             fnew = f[0] * (np.arange(0, projected_n) + 1)
             f_interp = Frequency.from_f(fnew, unit = 'Hz')
-            sfix_dut_fix.interpolate_self(f_interp, kind = 'linear',
+            sfix_dut_fix.interpolate_self(f_interp, kind = 'cubic',
                                    fill_value = 'extrapolate')
-            s2xthru.interpolate_self(f_interp, kind = 'linear',
+            s2xthru.interpolate_self(f_interp, kind = 'cubic',
                                    fill_value = 'extrapolate')   
             f = fnew
             
         # check if 2x-thru is not the same frequency vector as the
         # fixture-dut-fixture
         if(not np.array_equal(sfix_dut_fix.frequency.f, s2xthru.frequency.f)):
-            s2xthru.interpolate(sfix_dut_fix.frequency)
+            s2xthru.interpolate(sfix_dut_fix.frequency, kind = 'cubic',
+                                   fill_value = 'extrapolate')
             warnings.warn(
                "2x-thru does not have the same frequency vector as the fixture-dut-fixture. Interpolating to fix problem.",
                RuntimeWarning
@@ -2210,9 +2250,9 @@ class IEEEP370_SE_ZC_2xThru(Deembedding):
         # revert back to original frequency vector
         if self.flag_df:
             f_interp = Frequency.from_f(f_original, unit = 'Hz')
-            s_side1.interpolate_self(f_interp, kind = 'linear',
+            s_side1.interpolate_self(f_interp, kind = 'cubic',
                                    fill_value = 'extrapolate')
-            s_side2.interpolate_self(f_interp, kind = 'linear',
+            s_side2.interpolate_self(f_interp, kind = 'cubic',
                                    fill_value = 'extrapolate')
         
         # add DC back in
@@ -2317,6 +2357,13 @@ class IEEEP370_MM_ZC_2xThru(Deembedding):
         -|2  4|---|2  4|---|4  2|-
          +----+   +----+   +----+
     
+
+    Warning
+    -------
+    There is one difference compared to the original matlab implementation
+    [I3E370]:
+        - FIX-2 is flipped (see diagram above)
+    
     References
     ----------
     .. [I3E370] https://opensource.ieee.org/elec-char/ieee-370/-/blob/master/TG1/IEEEP370mmZc2xthru.m
@@ -2418,9 +2465,12 @@ class IEEEP370_MM_ZC_2xThru(Deembedding):
 
         # check if the frequencies match with dummy frequencies
         if ntwk.frequency != self.s2xthru.frequency:
-            raise(ValueError('Network frequencies dont match dummy frequencies.'))
-
-        # TODO: attempt to interpolate if frequencies do not match
+            warnings.warn('Network frequencies dont match dummy frequencies, attempting overlap.', RuntimeWarning)
+            ntwk, s2xthru = overlap_multi([ntwk, self.s2xthru])
+            se_side1, se_side2 = self.split2xthru(s2xthru, self.sfix_dut_fix)
+        else:
+            se_side1 = self.se_side1
+            se_side2 = self.se_side2
         
         # check if 4-port
         if ntwk.nports != 4:
@@ -2437,7 +2487,7 @@ class IEEEP370_MM_ZC_2xThru(Deembedding):
             new_order = list(range(0, N//2)) + list(range(N-1, N//2-1, -1))
             ntwk.renumber(old_order, new_order)
 
-        deembedded = self.se_side1.inv ** ntwk ** self.se_side2.flipped().inv
+        deembedded = se_side1.inv ** ntwk ** se_side2.flipped().inv
         #renumber back if required
         if self.port_order != 'second':
             deembedded.renumber(new_order, old_order)

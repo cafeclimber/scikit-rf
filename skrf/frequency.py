@@ -56,7 +56,7 @@ class InvalidFrequencyWarning(UserWarning):
     pass
 
 
-class Frequency(object):
+class Frequency:
     """
     A frequency band.
 
@@ -99,7 +99,7 @@ class Frequency(object):
 
 
     def __init__(self, start: float = 0, stop: float = 0, npoints: int = 0,
-        unit: str = 'ghz', sweep_type: str = 'lin') -> None:
+        unit: str = None, sweep_type: str = 'lin') -> None:
         """
         Frequency initializer.
 
@@ -145,6 +145,15 @@ class Frequency(object):
         >>> wr1p5band = Frequency(500, 750, 401, 'ghz')
 
         """
+        if unit is None:
+            warnings.warn('''
+                          Frequency unit not passed: currently uses 'GHz' per default.
+                          The future versions of scikit-rf will use 'Hz' per default instead,
+                          so it is recommended to specify explicitly the frequency unit
+                          to obtain similar results with future versions.
+                          ''',
+                          DeprecationWarning, stacklevel=2)
+            unit = 'ghz'
         self._unit = unit.lower()
 
         start =  self.multiplier * start
@@ -688,9 +697,9 @@ class Frequency(object):
             'lin' if linearly increasing, 'log' or 'unknown'.
 
         """
-        if npy.allclose(self.f, linspace(self.f[0], self.f[-1], self.npoints)):
+        if npy.allclose(self.f, linspace(self.f[0], self.f[-1], self.npoints), rtol=0.05):
             sweep_type = 'lin'
-        elif self.f[0] and npy.allclose(self.f, geomspace(self.f[0], self.f[-1], self.npoints)):
+        elif self.f[0] and npy.allclose(self.f, geomspace(self.f[0], self.f[-1], self.npoints), rtol=0.05):
             sweep_type = 'log'
         else:
             sweep_type = 'unknown'

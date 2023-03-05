@@ -349,8 +349,8 @@ def read_all(dir: str ='.', sort = True, contains = None, f_unit = None, obj_typ
                 pass
 
     if obj_type is not None:
-        out = dict([(k, out[k]) for k in out if
-            isinstance(out[k],sys.modules[__name__].__dict__[obj_type])])
+        out = {k: out[k] for k in out if
+            isinstance(out[k],sys.modules[__name__].__dict__[obj_type])}
 
     return out
 
@@ -625,7 +625,7 @@ def statistical_2_touchstone(file_name, new_file_name=None,\
         remove_tmp_file = True
 
     # This breaks compatibility with python 2.6 and older
-    with open(file_name, 'r') as old_file, open(new_file_name, 'w') as new_file:
+    with open(file_name) as old_file, open(new_file_name, 'w') as new_file:
         new_file.write('%s\n'%header_string)
         for line in old_file:
             new_file.write(line)
@@ -696,19 +696,19 @@ def network_2_spreadsheet(ntwk, file_name =None, file_type= 'excel', form='db',
         for m,n in ntwk.port_tuples:
             d['S%i%i Log Mag(dB)'%(m+1,n+1)] = \
                 Series(ntwk.s_db[:,m,n], index = index)
-            d[u'S%i%i Phase(deg)'%(m+1,n+1)] = \
+            d['S%i%i Phase(deg)'%(m+1,n+1)] = \
                 Series(ntwk.s_deg[:,m,n], index = index)
     elif form =='ma':
         for m,n in ntwk.port_tuples:
             d['S%i%i Mag(lin)'%(m+1,n+1)] = \
                 Series(ntwk.s_mag[:,m,n], index = index)
-            d[u'S%i%i Phase(deg)'%(m+1,n+1)] = \
+            d['S%i%i Phase(deg)'%(m+1,n+1)] = \
                 Series(ntwk.s_deg[:,m,n], index = index)
     elif form =='ri':
         for m,n in ntwk.port_tuples:
             d['S%i%i Real'%(m+1,n+1)] = \
                 Series(ntwk.s_re[:,m,n], index = index)
-            d[u'S%i%i Imag'%(m+1,n+1)] = \
+            d['S%i%i Imag'%(m+1,n+1)] = \
                 Series(ntwk.s_im[:,m,n], index = index)
 
     df = DataFrame(d)
@@ -734,18 +734,16 @@ def network_2_dataframe(ntwk, attrs=['s_db'], ports = None):
     df : pandas DataFrame Object
     """
     from pandas import DataFrame, Series # delayed because its not a requirement
-    d = {}
-    index =ntwk.frequency.f_scaled
 
     if ports is None:
         ports = ntwk.port_tuples
 
+    d = {}
     for attr in attrs:
-        for m,n in ports:
-            d['%s %i%i'%(attr, m+1,n+1)] = \
-                Series(ntwk.__getattribute__(attr)[:,m,n], index = index)
-
-    return DataFrame(d)
+        attr_array = ntwk.__getattribute__(attr)
+        for m, n in ports:
+            d[f'{attr} {m+1}{n+1}'] = attr_array[:, m, n]
+    return DataFrame(d, index=ntwk.frequency.f_scaled)
 
 def networkset_2_spreadsheet(ntwkset: 'NetworkSet', file_name: str = None, file_type: str = 'excel',
     *args, **kwargs):
@@ -796,26 +794,14 @@ def networkset_2_spreadsheet(ntwkset: 'NetworkSet', file_name: str = None, file_
         # add file extension if missing
         if not file_name.endswith('.xlsx'):
             file_name += '.xlsx'
-        writer = ExcelWriter(file_name)
-        [network_2_spreadsheet(k, writer, sheet_name=k.name, *args, **kwargs) for k in ntwkset]
-        writer.save()
+        with ExcelWriter(file_name) as writer:
+            [network_2_spreadsheet(k, writer, sheet_name=k.name, *args, **kwargs) for k in ntwkset]
     else:
         [network_2_spreadsheet(k,*args, **kwargs) for k in ntwkset]
 
 
-# Provide a StringBuffer that let's me work with Python2 strings and Python3 unicode strings without thinking
-if sys.version_info < (3, 0):
-    import StringIO
-
-    class StringBuffer(StringIO.StringIO):
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            self.close()
-else:
-    from io import StringIO
-    StringBuffer = StringIO
+from io import StringIO
+StringBuffer = StringIO
 
 
 class TouchstoneEncoder(json.JSONEncoder):
