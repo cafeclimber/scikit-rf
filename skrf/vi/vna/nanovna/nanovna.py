@@ -1,35 +1,38 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from typing import Optional, Union
-
-import functools
 from enum import Enum
+from functools import partial
+from time import sleep
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pyvisa
 
 import skrf
+from skrf.frequency import Frequency
 from skrf.vi import vna
 
-
-class OP(bytes, Enum):
-    NOP = b"\x00"
-    INDICATE = b"\x0d"
-    READ = b"\x10"
-    READ2 = b"\x11"
-    READ4 = b"\x12"
-    READFIFO = b"\x18"
-    WRITE = b"\x20"
-    WRITE2 = b"\x21"
-    WRITE4 = b"\x22"
-    WRITE8 = b"\x23"
-    WRITEFIFO = b"\x28"
+if TYPE_CHECKING:
+    from typing import Union
 
 
-class REG_ADDR(bytes, Enum):
+# command byte and length of expected data
+class OP(tuple[bytes, int], Enum):
+    NOP = b"\x00", 0
+    INDICATE = b"\x0d", 0
+    READ = b"\x10", 1
+    READ2 = b"\x11", 2
+    READ4 = b"\x12", 4
+    READFIFO = b"\x18", -1
+    WRITE = b"\x20", 1
+    WRITE2 = b"\x21", 2
+    WRITE4 = b"\x22", 4
+    WRITE8 = b"\x23", 8
+    WRITEFIFO = b"\x28", -1
+
+
+class RegAddr(bytes, Enum):
     SWEEP_START = b"\x00"
     SWEEP_STEP = b"\x10"
     SWEEP_POINTS = b"\x20"
@@ -43,166 +46,188 @@ class REG_ADDR(bytes, Enum):
     FIRMWARE_MINOR = b"\xf4"
 
 
-class NanoVNA(vna.VNA):
+from_bytes = partial(int.from_bytes, byteorder="little", signed=True)
+from_ubytes = partial(int.from_bytes, byteorder="little", signed=False)
+to_ubytes = partial(int.to_bytes, byteorder="little", signed=False)
+make_freq = partial(Frequency, unit="hz", sweep_type="lin")
+
+
+def _convert_bytes_to_sparams(
+    count: int, raw: bytearray
+) -> tuple[np.ndarray, np.ndarray]:
+    s11 = np.zeros(count, dtype=complex)
+    s21 = np.zeros_like(s11)
+
+    for i in range(count):
+        start = i * 32
+        stop = (i + 1) * 32
+        chunk = raw[start:stop]
+        fwd0re = from_bytes(chunk[:4])
+        fwd0im = from_bytes(chunk[4:8])
+        rev0re = from_bytes(chunk[8:12])
+        rev0im = from_bytes(chunk[12:16])
+        rev1re = from_bytes(chunk[16:20])
+        rev1im = from_bytes(chunk[20:24])
+        freq_index = from_bytes(chunk[24:26])
+
+        fwd0 = complex(fwd0re, fwd0im)
+        rev0 = complex(rev0re, rev0im)
+        rev1 = complex(rev1re, rev1im)
+
+        s11[freq_index] = rev0 / fwd0
+        s21[freq_index] = rev1 / fwd0
+
+    return s11, s21
+
+
+class NanoVNAv2(vna.VNA):
     _scpi = False
 
     def __init__(self, address, backend: str = "@py"):
         super().__init__(address, backend)
         if not isinstance(self._resource, pyvisa.resources.SerialInstrument):
             raise RuntimeError(
-                "NanoVNA can only be a serial instrument. "
+                "NanoVNA_V2 can only be a serial instrument."
                 f"{address} yields a {self._resource.__class__.__name__}"
             )
 
         self.read_bytes = self._resource.read_bytes
         self.write_raw = self._resource.write_raw
-
-        self._freq = skrf.Frequency(start=1e6, stop=10e6, npoints=201)
+        self.query_delay = self._resource.query_delay = 0.05
+        self._freq = make_freq(start=100e6, stop=300e6, npoints=201)
         self._reset_protocol()
+        self._set_sweep()
 
-    def _reset_protocol(self):
-        self.write_raw(b"\x00\x00\x00\x00\x00\x00\x00\x00")
+    def _reset_protocol(self) -> None:
+        self.write_raw(OP.NOP[0] * 8)
+        sleep(self.query_delay)
 
-    def query(self, op: OP, addr: Union[REG_ADDR, bytes], nbytes: int) -> bytes:
-        cmd = op + addr
-        self.write_raw(cmd)
-        return self.read_bytes(nbytes)
-
-    def write(self, op: OP, addr: Union[REG_ADDR, bytes], nbytes: int, arg: int) -> None:
-        arg = int(arg).to_bytes(nbytes, byteorder="little", signed=False)
-
-        if op == OP.WRITEFIFO:
-            cmd = op + addr + nbytes.to_bytes(1) + arg
+    def query(self, cmd: OP, addr: RegAddr, count: int = 0, bytesize: int = 1) -> bytes:
+        bytes_to_read = cmd[1]
+        if cmd == OP.READFIFO:
+            self.write_raw(cmd[0] + addr + to_ubytes(count, 1))
+            bytes_to_read = count * bytesize
         else:
-            cmd = op + addr + arg
+            self.write_raw(cmd[0] + addr)
+        sleep(self.query_delay)
+        return self.read_bytes(bytes_to_read)
 
-        self.write_raw(cmd)
+    def write(self, cmd: OP, addr: RegAddr, data: Union[bytes, int] = None) -> None:
+        if cmd == OP.WRITEFIFO:
+            self.write_raw(cmd[0] + addr + to_ubytes(len(data)) + data)
+            return
+        if cmd[1] == 0:  # command without data
+            self.write_raw(cmd[0] + addr)
+            return
+        if isinstance(data, (int, float)):
+            data = to_ubytes(int(data), cmd[1])
+        self.write_raw(cmd[0] + addr + data)
+
+    def _device_info_raw(self) -> tuple[int, int, int, int, int]:
+        return (
+            from_ubytes(self.query(OP.READ, RegAddr.DEVICE_VARIANT, 1)),
+            from_ubytes(self.query(OP.READ, RegAddr.PROTOCOL_VERSION, 1)),
+            from_ubytes(self.query(OP.READ, RegAddr.HARDWARE_REV, 1)),
+            from_ubytes(self.query(OP.READ, RegAddr.FIRMWARE_MAJOR, 1)),
+            from_ubytes(self.query(OP.READ, RegAddr.FIRMWARE_MINOR, 1)),
+        )
+
+    def _set_sweep(self) -> None:
+        self.write(OP.WRITE8, RegAddr.SWEEP_START, self._freq.start)
+        self.write(OP.WRITE8, RegAddr.SWEEP_STEP, self._freq.step)
+        self.write(OP.WRITE2, RegAddr.SWEEP_POINTS, self._freq.npoints)
 
     @property
     def id(self) -> str:
-        var = self.query(OP.READ, REG_ADDR.DEVICE_VARIANT, 1)
-        var = int.from_bytes(var, 'little')
-        return str(var)
+        device, _, hardware, fw_major, fw_minor = self._device_info_raw()
+        if device != 2:
+            return f"Unknown device, got deviceVariant={device}"
+        return f"NanoVNA_V2_{hardware} FW({fw_major}.{fw_minor})"
 
     @property
     def device_info(self) -> str:
-        variant = self.id
-        protocol = self.query(OP.READ, REG_ADDR.PROTOCOL_VERSION, 1)
-        protocol = int.from_bytes(protocol, 'little')
-        hardware = self.query(OP.READ, REG_ADDR.HARDWARE_REV, 1)
-        hardware = int.from_bytes(hardware, 'little')
-        fw_major = self.query(OP.READ, REG_ADDR.FIRMWARE_MAJOR, 1)
-        fw_major = int.from_bytes(fw_major, 'little')
-        fw_minor = self.query(OP.READ, REG_ADDR.FIRMWARE_MAJOR, 1)
-        fw_minor = int.from_bytes(fw_minor, 'little')
-
+        device, protocol, hardware, fw_major, fw_minor = self._device_info_raw()
         return (
-            f"NanoVNA\n"
-            f"\tVariant:{variant}\n"
+            f"NanoVNA V2\n"
+            f"\tVariant:{device}\n"
             f"\tProtocol Version:{protocol}\n"
             f"\tHardware Version: {hardware}\n"
             f"\tFirmware Version: {fw_major}.{fw_minor}"
         )
-
 
     @property
     def freq_start(self) -> float:
         return self._freq.start
 
     @freq_start.setter
-    def freq_start(self, f: int) -> None:
-        self.write(f"WRITE8;SWEEP_START;8;{f}")
-        self._freq.start = f
+    def freq_start(self, freq: float) -> None:
+        self._freq = make_freq(freq, self._freq.stop, self._freq.npoints)
+        self._set_sweep()
 
     @property
     def freq_stop(self) -> float:
         return self._freq.stop
 
     @freq_stop.setter
-    def freq_stop(self, f: int) -> None:
-        self.write(f"WRITE8;SWEEP_STOP;8;{f}")
-        self._freq.stop = f
+    def freq_stop(self, freq: float) -> None:
+        self._freq = make_freq(self._freq.start, freq, self._freq.npoints)
+        self._set_sweep()
 
     @property
     def freq_step(self) -> float:
         return self._freq.step
 
     @freq_step.setter
-    def freq_step(self, f: int) -> None:
-        self._freq = skrf.Frequency.from_f(
-            range(self._freq.start, self._freq.stop + f, f)
+    def freq_step(self, freq: float) -> None:
+        self._freq = Frequency.from_f(
+            range(
+                self._freq.start,
+                self._freq.start + freq * (self._freq.npoints + 1),
+                freq,
+            ),
+            unit="hz",
         )
-        self.write(f"WRITE2;SWEEP_POINTS;2;{self._freq.npoints}")
+        self._set_sweep()
 
     @property
     def npoints(self) -> int:
         return self._freq.npoints
 
     @npoints.setter
-    def npoints(self, n: int) -> None:
-        self.write(f"WRITE2;SWEEP_POINTS;2;{n}")
-        self._freq.npoints = n
+    def npoints(self, count: int) -> None:
+        self._freq = make_freq(self._freq.start, self._freq.stop, count)
+        self._set_sweep()
 
     @property
-    def frequency(self) -> skrf.Frequency:
+    def frequency(self) -> Frequency:
         return self._freq
 
     @frequency.setter
-    def frequency(self, f: skrf.Frequency):
-        self.write(f"WRITE8;SWEEP_START;8;{f.start}")
-        self.write(f"WRITE8;SWEEP_STOP;8;{f.stop}")
-        self.write(f"WRITE2;SWEEP_POINTS;2;{f.npoints}")
-        self._freq = f
+    def frequency(self, freq: Frequency):
+        self._freq = freq
+        self._set_sweep()
 
     def clear_fifo(self) -> None:
-        self.write("WRITE;VALS_FIFO;1;0")
-
-    def _convert_bytes_to_sparams(n: int, raw: bytearray) -> tuple[np.ndarray, np.ndarray]:
-        s11 = np.zeros(n, dtype=complex)
-        s21 = np.zeros_like(s11)
-
-        from_bytes = functools.partial(int.from_bytes, byteorder='little', signed=True)
-
-        for i in range(n):
-            start = i * 32
-            stop = (i+1) * 32
-            chunk = raw[start:stop]
-
-            fwd0re = from_bytes(chunk[0:4])
-            fwd0im = from_bytes(chunk[4:8])
-            rev0re = from_bytes(chunk[8:12])
-            rev0im = from_bytes(chunk[12:16])
-            rev1re = from_bytes(chunk[16:20])
-            rev1im = from_bytes(chunk[20:24])
-            freqIndex = from_bytes(chunk[24:26])
-
-            a1 = complex(fwd0re, fwd0im)
-            b1 = complex(rev0re, rev0im)
-            b2 = complex(rev1re, rev1im)
-
-            s11[freqIndex] = b1 / a1
-            s21[freqIndex] = b2 / a1
-        
-        return s11, s21
-        
+        self.write(OP.WRITE, RegAddr.VALS_FIFO, 0)
 
     def get_s11_s21(self) -> tuple[skrf.Network, skrf.Network]:
-        n = self._freq.npoints
+        points = self._freq.npoints
         self.clear_fifo()
+        sleep(self.query_delay)
 
         raw = bytearray()
-        n_remaining = n
+        points_remaining = points
 
-        while n_remaining > 0:
-            len_segment = 255 if n_remaining > 255 else n_remaining
-            n_remaining = n_remaining - len_segment
-            self.write(f"READFIFO;VALS_FIFO;{len_segment}")
-            raw.extend(self.read_bytes(32 * len_segment))
+        while points_remaining > 0:
+            len_segment = min(points_remaining, 255)
+            data = self.query(OP.READFIFO, RegAddr.VALS_FIFO, len_segment, 32)
+            raw.extend(data)
+            points_remaining = points_remaining - len_segment
 
         s11, s21 = skrf.Network(), skrf.Network()
         s11.frequency = self._freq.copy()
         s21.frequency = self._freq.copy()
 
-        s11.s, s21.s = self._convert_bytes_to_sparams(n, raw)
+        s11.s, s21.s = _convert_bytes_to_sparams(points, raw)
 
         return s11, s21
