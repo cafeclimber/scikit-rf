@@ -102,7 +102,9 @@ class NanoVNAv2(VNA):
         self.write_raw(OP.NOP[0] * 8)
         sleep(self.query_delay)
 
-    def query(self, cmd: OP, addr: RegAddr, count: int = 0, bytesize: int = 1) -> bytes:
+    def query(
+        self, cmd: OP, addr: RegAddr = b"", count: int = 0, bytesize: int = 1
+    ) -> bytes:
         bytes_to_read = cmd[1]
         if cmd == OP.READFIFO:
             self.write_raw(cmd[0] + addr + to_ubytes(count, 1))
@@ -112,7 +114,9 @@ class NanoVNAv2(VNA):
         sleep(self.query_delay)
         return self.read_bytes(bytes_to_read)
 
-    def write(self, cmd: OP, addr: RegAddr, data: Union[bytes, int] = None) -> None:
+    def write(
+        self, cmd: OP, addr: RegAddr = b"", data: Union[bytes, int] = None
+    ) -> None:
         if cmd == OP.WRITEFIFO:
             self.write_raw(cmd[0] + addr + to_ubytes(len(data)) + data)
             return
