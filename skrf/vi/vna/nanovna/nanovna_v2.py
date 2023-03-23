@@ -11,7 +11,7 @@ import pyvisa
 
 import skrf
 from skrf.frequency import Frequency
-from skrf.vi import vna
+from skrf.vi.vna import VNA
 
 if TYPE_CHECKING:
     from typing import Union
@@ -80,7 +80,7 @@ def _convert_bytes_to_sparams(
     return s11, s21
 
 
-class NanoVNAv2(vna.VNA):
+class NanoVNAv2(VNA):
     _scpi = False
 
     def __init__(self, address, backend: str = "@py"):
