@@ -283,7 +283,7 @@ class PNA(VNA):
             self.write(f"SENS{self.cnum}:AVER:CLE")
 
         def create_measurement(self, name: str, parameter: str) -> None:
-            self.write(f"CALC{self.cnum}:PAR:EXT '{name}',{parameter}")
+            self.write(f"CALC{self.cnum}:PAR:EXT '{name}','{parameter}'")
             # Not all instruments support DISP:WIND:TRAC:NEXT
             traces = self.query("DISP:WIND:CAT?").replace('"', "")
             traces = [int(tr) for tr in traces.split(",")] if traces != "EMPTY" else [0]
